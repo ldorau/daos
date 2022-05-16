@@ -1,5 +1,5 @@
 /**
- * (C) Copyright 2020-2021 Intel Corporation.
+ * (C) Copyright 2020-2022 Intel Corporation.
  *
  * SPDX-License-Identifier: BSD-2-Clause-Patent
  */
@@ -278,6 +278,7 @@ db_trav_cb(daos_handle_t ih, vos_iter_entry_t *entry, vos_iter_type_t type,
 static int
 db_traverse(struct sys_db *db, char *table, sys_db_trav_cb_t cb, void *args)
 {
+	D_PRINT("[RYON] %s:%d [%s()] > \n", __FILE__, __LINE__, __FUNCTION__);
 	struct vos_sys_db	*vdb = db2vos(db);
 	struct vos_iter_anchors  anchors = { 0 };
 	struct db_trav_args	 ta;

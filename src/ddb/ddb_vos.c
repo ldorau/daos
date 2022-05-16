@@ -9,6 +9,7 @@
 #include <daos_srv/vos.h>
 #include <gurt/debug.h>
 #include <vos_internal.h>
+#include <daos_srv/smd.h>
 #include "ddb_common.h"
 #include "ddb_parse.h"
 #include "ddb_vos.h"
@@ -62,20 +63,49 @@ ddb_vos_pool_open(char *path, daos_handle_t *poh)
 	int		rc;
 
 	rc = vos_path_parse(path, pool_uuid, pool_base, ARRAY_SIZE(pool_base));
-	if (!SUCCESS(rc))
-		return rc;
+	if (!SUCCESS(rc)) {
+		D_PRINT("[RYON] %s:%d [%s()] > \n", __FILE__, __LINE__, __FUNCTION__);
+		flags = VOS_POF_SKIP_UUID_CHECK;
+//		return rc;
+	}
 	/*
 	 * VOS files must be under /mnt/daos directory. This is a current limitation and
 	 * will change in the future
 	 */
-	rc = vos_self_init(pool_base);
-	if (!SUCCESS(rc))
+	rc = vos_self_init("/mnt/daos");
+	if (!SUCCESS(rc)) {
+		D_PRINT("[RYON] %s:%d [%s()] > \n", __FILE__, __LINE__, __FUNCTION__);
 		return rc;
+	}
+
+	/*
+	 * ------------------------------------------------------------------------------------
+	 * Exploration ...
+	 * ------------------------------------------------------------------------------------
+	 */
+	/* [todo-ryon]: Trying to figure out pool with NVMe */
+	d_list_t pool_list;
+	D_INIT_LIST_HEAD(&pool_list);
+	int pool_cnt = 0;
+	rc = smd_pool_list(&pool_list, &pool_cnt);
+	if (!SUCCESS(rc)) {
+		D_PRINT("[RYON] %s:%d [%s()] > Couldn't list pools: "DF_RC"\n", __FILE__, __LINE__, __FUNCTION__, DP_RC(rc));
+	}
+	/* [todo-ryon]: why is pool_cnt 0 when there is a pool? */
+	D_PRINT("[RYON] %s:%d [%s()] > pool_cnt: %d\n", __FILE__, __LINE__, __FUNCTION__, pool_cnt);
+
+	/*
+	 * ------------------------------------------------------------------------------------
+	 * ... END Exploration
+	 * ------------------------------------------------------------------------------------
+	 */
+
 
 	rc = vos_pool_open(path, pool_uuid, flags, poh);
-	if (!SUCCESS(rc))
+	if (!SUCCESS(rc)) {
+		D_PRINT("[RYON] %s:%d [%s()] > \n", __FILE__, __LINE__, __FUNCTION__);
 		vos_self_fini();
-
+	}
 	return rc;
 }
 

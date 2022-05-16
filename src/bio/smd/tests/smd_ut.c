@@ -1,5 +1,5 @@
 /**
- * (C) Copyright 2018-2021 Intel Corporation.
+ * (C) Copyright 2018-2022 Intel Corporation.
  *
  * SPDX-License-Identifier: BSD-2-Clause-Patent
  */
@@ -148,6 +148,7 @@ db_delete(struct sys_db *db, char *table, d_iov_t *key)
 static int
 db_traverse(struct sys_db *db, char *table, sys_db_trav_cb_t cb, void *args)
 {
+	D_PRINT("[RYON] %s:%d [%s()] > \n", __FILE__, __LINE__, __FUNCTION__);
 	d_list_t	*head = db_name2list(db, table);
 	struct ut_chain *chain;
 

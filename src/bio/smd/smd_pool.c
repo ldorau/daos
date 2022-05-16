@@ -1,5 +1,5 @@
 /**
- * (C) Copyright 2018-2021 Intel Corporation.
+ * (C) Copyright 2018-2022 Intel Corporation.
  *
  * SPDX-License-Identifier: BSD-2-Clause-Patent
  */
@@ -88,6 +88,8 @@ smd_pool_add_tgt(uuid_t pool_id, uint32_t tgt_id, uint64_t blob_id,
 			DP_UUID(&id.uuid), DP_RC(rc));
 		goto out;
 	}
+	D_DEBUG(DB_MGMT, "Pool "DF_UUID" target %d added.\n",
+		DP_UUID(id.uuid), tgt_id);
 out:
 	smd_db_unlock();
 	return rc;
@@ -215,6 +217,9 @@ smd_pool_get_blob(uuid_t pool_id, uint32_t tgt_id, uint64_t *blob_id)
 
 	uuid_copy(id.uuid, pool_id);
 
+	D_PRINT("[RYON] %s:%d [%s()] > getting blob id for pool: "DF_UUIDF", tgt_id: %d\n",
+		__FILE__, __LINE__, __FUNCTION__,
+		DP_UUID(pool_id), tgt_id);
 	smd_db_lock();
 	rc = smd_db_fetch(TABLE_POOL, &id, sizeof(id), &pool, sizeof(pool));
 	if (rc) {
@@ -247,6 +252,7 @@ smd_pool_list_cb(struct sys_db *db, char *table, d_iov_t *key, void *args)
 	struct d_uuid            id;
 	int                      rc;
 
+	D_PRINT("[RYON] %s:%d [%s()] > in callback\n", __FILE__, __LINE__, __FUNCTION__);
 	D_ASSERT(key->iov_len == sizeof(id));
 	id = *(struct d_uuid *)key->iov_buf;
 	rc = smd_db_fetch(TABLE_POOL, &id, sizeof(id), &pool, sizeof(pool));
@@ -271,19 +277,24 @@ smd_pool_list(d_list_t *pool_list, int *pools)
 	td.td_count = 0;
 	D_INIT_LIST_HEAD(&td.td_list);
 
-	if (!smd_db_ready())
+	if (!smd_db_ready()) {
+		D_PRINT("[RYON] %s:%d [%s()] > smd not ready??\n", __FILE__, __LINE__, __FUNCTION__);
 		return 0; /* There is no NVMe, smd will not be initialized */
+	}
 
+	D_PRINT("[RYON] %s:%d [%s()] > traversing ... \n", __FILE__, __LINE__, __FUNCTION__);
 	smd_db_lock();
 	rc = smd_db_traverse(TABLE_POOL, smd_pool_list_cb, &td);
 	smd_db_unlock();
 
 	if (rc == 0) { /* success */
+		D_PRINT("[RYON] %s:%d [%s()] > \n", __FILE__, __LINE__, __FUNCTION__);
 		*pools = td.td_count;
 		d_list_splice_init(&td.td_list, pool_list);
 	}
 
 	while (!d_list_empty(&td.td_list)) {
+		D_PRINT("[RYON] %s:%d [%s()] > \n", __FILE__, __LINE__, __FUNCTION__);
 		struct smd_pool_info	*info;
 
 		info = d_list_entry(td.td_list.next, struct smd_pool_info,

@@ -706,7 +706,7 @@ vos_self_nvme_init()
 		return rc;
 
 	self_mode.self_nvme_init = true;
-	rc = bio_xsctxt_alloc(&self_mode.self_xs_ctxt, -1 /* Self poll */);
+	rc = bio_xsctxt_alloc(&self_mode.self_xs_ctxt, 1 /* Self poll */);
 	return rc;
 }
 
@@ -773,7 +773,7 @@ vos_self_init(const char *db_path)
 	if (rc)
 		D_GOTO(failed, rc);
 
-	rc = vos_db_init(db_path, "self_db", true);
+	rc = vos_db_init(db_path, NULL, true);
 	if (rc)
 		D_GOTO(failed, rc);
 
