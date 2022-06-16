@@ -1,5 +1,5 @@
 //
-// (C) Copyright 2020-2021 Intel Corporation.
+// (C) Copyright 2020-2022 Intel Corporation.
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 //
@@ -126,4 +126,36 @@ func ParseHostList(in []string, defaultPort int) (out []string, err error) {
 	}
 
 	return
+}
+
+// CheckIPAddrOnNetwork checks whether the given IP address is on the given IP network.
+func CheckIPAddrOnNetwork(addr net.IP, network *net.IPNet) error {
+	if network == nil {
+		return errors.New("IPNet is nil")
+	}
+
+	if !SameIPVersion(addr, network.IP) {
+		return errors.Errorf("IP %s and network IP %s are not comparable IP versions",
+			addr, network.IP)
+	}
+
+	addrSubnet := addr.Mask(network.Mask)
+	networkSubnet := network.IP.Mask(network.Mask)
+	if addrSubnet.Equal(networkSubnet) {
+		return nil
+	}
+	return errors.Errorf("IP %s is not on network with %s", addr, network)
+}
+
+// SameIPVersion checks whether the two IP addresses are both the same version, either IPv4 or IPv6.
+func SameIPVersion(addr1, addr2 net.IP) bool {
+	isV4 := func(a net.IP) bool {
+		return a.To4() != nil
+	}
+
+	isV6 := func(a net.IP) bool {
+		return a.To16() != nil
+	}
+
+	return isV4(addr1) == isV4(addr2) && isV6(addr1) == isV6(addr2)
 }
