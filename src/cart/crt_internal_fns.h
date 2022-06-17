@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2016-2021 Intel Corporation.
+ * (C) Copyright 2016-2022 Intel Corporation.
  *
  * SPDX-License-Identifier: BSD-2-Clause-Patent
  */
@@ -38,6 +38,14 @@ void crt_rpc_complete(struct crt_rpc_priv *rpc_priv, int rc);
 int crt_req_timeout_track(struct crt_rpc_priv *rpc_priv);
 void crt_req_timeout_untrack(struct crt_rpc_priv *rpc_priv);
 void crt_req_force_timeout(struct crt_rpc_priv *rpc_priv);
+
+enum crt_rank_mark_op {
+	CRM_MARK_NOTHING,
+	CRM_MARK_ALIVE,
+	CRM_MARK_DEAD
+};
+
+int crt_rank_abort_and_mark(d_rank_t rank, enum crt_rank_mark_op op);
 
 /** crt_hlct.c */
 uint64_t crt_hlct_get(void);

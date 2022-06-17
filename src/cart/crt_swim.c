@@ -775,7 +775,8 @@ out:
 }
 
 static void
-crt_swim_notify_rank_state(d_rank_t rank, struct swim_member_state *state)
+crt_swim_notify_rank_state(d_rank_t rank, struct swim_member_state *state_prev,
+			   struct swim_member_state *state)
 {
 	struct crt_event_cb_priv *cbs_event;
 	crt_event_cb		 cb_func;
@@ -783,7 +784,13 @@ crt_swim_notify_rank_state(d_rank_t rank, struct swim_member_state *state)
 	enum crt_event_type	 cb_type;
 	size_t			 i, cbs_size;
 
+	D_ASSERT(state_prev != NULL);
 	D_ASSERT(state != NULL);
+
+	D_DEBUG(DB_TRACE, "rank=%u: status=%c->%c incarnation="DF_X64"->"DF_X64"\n", rank,
+		SWIM_STATUS_CHARS[state_prev->sms_status], SWIM_STATUS_CHARS[state->sms_status],
+		state_prev->sms_incarnation, state->sms_incarnation);
+
 	switch (state->sms_status) {
 	case SWIM_MEMBER_ALIVE:
 		cb_type = CRT_EVT_ALIVE;
@@ -793,6 +800,21 @@ crt_swim_notify_rank_state(d_rank_t rank, struct swim_member_state *state)
 		break;
 	default:
 		return;
+	}
+
+	/*
+	 * Abort inflight RPCs if the rank has become DEAD or has potentially
+	 * restarted, to avoid waiting out RPC timeouts. Note that this
+	 * avoidance is an optimization, not a guarantee. In the DEAD case,
+	 * future RPCs will also be canceled immediately via the epi objects.
+	 */
+	if (cb_type == CRT_EVT_DEAD || state_prev->sms_incarnation < state->sms_incarnation) {
+		enum crt_rank_mark_op op = CRM_MARK_ALIVE;
+
+		if (cb_type == CRT_EVT_DEAD)
+			op = CRM_MARK_DEAD;
+		/* Ignore the return value; the function logs errors. */
+		crt_rank_abort_and_mark(rank, op);
 	}
 
 	/* walk the global list to execute the user callbacks */
@@ -836,6 +858,7 @@ static int crt_swim_set_member_state(struct swim_context *ctx,
 	struct crt_grp_priv	*grp_priv = crt_gdata.cg_grp->gg_primary_grp;
 	struct crt_swim_membs	*csm = &grp_priv->gp_membs_swim;
 	struct crt_swim_target	*cst;
+	struct swim_member_state state_prev = {0};
 	int			 rc = -DER_NONEXIST;
 
 	D_ASSERT(state != NULL);
@@ -851,13 +874,14 @@ static int crt_swim_set_member_state(struct swim_context *ctx,
 		else if (cst->cst_state.sms_status == SWIM_MEMBER_ALIVE &&
 			 state->sms_status != SWIM_MEMBER_ALIVE)
 			csm->csm_alive_count--;
+		state_prev = cst->cst_state;
 		cst->cst_state = *state;
 		rc = 0;
 	}
 	crt_swim_csm_unlock(csm);
 
 	if (rc == 0)
-		crt_swim_notify_rank_state((d_rank_t)id, state);
+		crt_swim_notify_rank_state((d_rank_t)id, &state_prev, state);
 
 	return rc;
 }
@@ -1046,8 +1070,8 @@ int crt_swim_init(int crt_ctx_idx)
 		}
 
 		for (i = 0; i < grp_priv->gp_size; i++) {
-			rc = crt_swim_rank_add(grp_priv,
-					       grp_membs->rl_ranks[i]);
+			rc = crt_swim_rank_add(grp_priv, grp_membs->rl_ranks[i],
+					       0 /* incarnation */);
 			if (rc && rc != -DER_ALREADY) {
 				D_ERROR("crt_swim_rank_add(): "DF_RC"\n",
 					DP_RC(rc));
@@ -1314,7 +1338,7 @@ void crt_swim_accommodate(void)
 	}
 }
 
-int crt_swim_rank_add(struct crt_grp_priv *grp_priv, d_rank_t rank)
+int crt_swim_rank_add(struct crt_grp_priv *grp_priv, d_rank_t rank, uint64_t incarnation)
 {
 	struct crt_swim_membs	*csm = &grp_priv->gp_membs_swim;
 	struct crt_swim_target	*cst = NULL;
@@ -1340,7 +1364,8 @@ int crt_swim_rank_add(struct crt_grp_priv *grp_priv, d_rank_t rank)
 	crt_swim_csm_lock(csm);
 	if (csm->csm_list_len == 0) {
 		cst->cst_id = (swim_id_t)self;
-		cst->cst_state.sms_incarnation = csm->csm_incarnation;
+		cst->cst_state.sms_incarnation = incarnation == 0 ? csm->csm_incarnation :
+								    incarnation;
 		cst->cst_state.sms_status = SWIM_MEMBER_ALIVE;
 		rc = crt_swim_membs_add(csm, cst);
 		if (rc != 0)
@@ -1368,7 +1393,7 @@ int crt_swim_rank_add(struct crt_grp_priv *grp_priv, d_rank_t rank)
 		}
 		id = (swim_id_t)rank;
 		cst->cst_id = id;
-		cst->cst_state.sms_incarnation = 0;
+		cst->cst_state.sms_incarnation = incarnation;
 		cst->cst_state.sms_status = SWIM_MEMBER_INACTIVE;
 		rc = crt_swim_membs_add(csm, cst);
 		if (rc != 0)
@@ -1468,6 +1493,43 @@ crt_swim_rank_shuffle(struct crt_grp_priv *grp_priv)
 	crt_swim_csm_lock(csm);
 	crt_swim_membs_shuffle(csm);
 	crt_swim_csm_unlock(csm);
+}
+
+/**
+ * If \a incarnation is greater than the incarnation of \a rank, then set the
+ * status of \a rank to ALIVE.
+ */
+int
+crt_swim_rank_check(struct crt_grp_priv *grp_priv, d_rank_t rank, uint64_t incarnation)
+{
+	struct crt_swim_membs	*csm = &grp_priv->gp_membs_swim;
+	struct crt_swim_target	*cst;
+	struct swim_member_state state_prev;
+	struct swim_member_state state;
+	bool			 updated = false;
+	int			 rc = -DER_NONEXIST;
+
+	if (!crt_gdata.cg_swim_inited)
+		return 0;
+
+	crt_swim_csm_lock(csm);
+	cst = crt_swim_membs_find(csm, rank);
+	if (cst != NULL) {
+		if (cst->cst_state.sms_incarnation < incarnation) {
+			state_prev = cst->cst_state;
+			cst->cst_state.sms_incarnation = incarnation;
+			cst->cst_state.sms_status = SWIM_MEMBER_ALIVE;
+			state = cst->cst_state;
+			updated = true;
+		}
+		rc = 0;
+	}
+	crt_swim_csm_unlock(csm);
+
+	if (updated)
+		crt_swim_notify_rank_state(rank, &state_prev, &state);
+
+	return rc;
 }
 
 int
