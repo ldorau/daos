@@ -100,9 +100,13 @@ type (
 		data *dbData
 	}
 
+	// NodeAddrMap defines a set of addresses, grouped by node.
+	// It is possible for a node to have multiple IPs, and any of them may be used.
+	NodeAddrMap map[string][]*net.TCPAddr
+
 	// DatabaseConfig defines the configuration for the system database.
 	DatabaseConfig struct {
-		Replicas   []*net.TCPAddr
+		Replicas   NodeAddrMap
 		RaftDir    string
 		SystemName string
 	}
@@ -114,6 +118,23 @@ type (
 		MSRanks  []system.Rank
 	}
 )
+
+// Has checks whether the address map contains a specific TCP address.
+func (am NodeAddrMap) Has(addr *net.TCPAddr) bool {
+	for _, addrs := range am {
+		for _, a := range addrs {
+			if common.CmpTCPAddr(a, addr) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Add adds TCP addresses to a node.
+func (am NodeAddrMap) Add(node string, addrs ...*net.TCPAddr) {
+	am[node] = append(am[node], addrs...)
+}
 
 // setSvc safely sets the raft service implementation under a lock
 func (sr *syncRaft) setSvc(svc raftService) {
