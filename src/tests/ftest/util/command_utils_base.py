@@ -455,8 +455,7 @@ class YamlParameters(ObjectWithParameters):
             dict: a dictionary of parameter name keys and values
 
         """
-        if (self.other_params is not None and
-                hasattr(self.other_params, "get_yaml_data")):
+        if (self.other_params is not None and hasattr(self.other_params, "get_yaml_data")):
             yaml_data = self.other_params.get_yaml_data()
         else:
             yaml_data = {}
@@ -464,6 +463,33 @@ class YamlParameters(ObjectWithParameters):
             value = getattr(self, name).value
             if value is not None:
                 yaml_data[name] = value
+
+        # HACK - append suffix to yaml
+        def _append_suffix(hostlist, suffix):
+            new_hostlist = []
+            for host in hostlist:
+                if suffix not in host:
+                    host += suffix
+                new_hostlist.append(host)
+            return new_hostlist
+
+        if 'hostlist' in yaml_data:
+            self.log.info('old hostlist: {}'.format(yaml_data['hostlist']))
+            yaml_data['hostlist'] = _append_suffix(
+                yaml_data['hostlist'], '.hostmgmt1001.aurora.americas.sgi.com')
+            self.log.info('new hostlist: {}'.format(yaml_data['hostlist']))
+        if 'access_points' in yaml_data:
+            self.log.info('old access_points: {}'.format(yaml_data['access_points']))
+            yaml_data['access_points'] = _append_suffix(
+                yaml_data['access_points'], '.hostmgmt1001.aurora.americas.sgi.com')
+            self.log.info('new access_points: {}'.format(yaml_data['access_points']))
+
+        if 'hostlist' in yaml_data:
+            yaml_data['hostlist'] = _append_suffix(
+                yaml_data['hostlist'], '.hostmgmt1001.aurora.americas.sgi.com')
+        if 'access_points' in yaml_data:
+            yaml_data['access_points'] = _append_suffix(
+                yaml_data['access_points'], '.hostmgmt1001.aurora.americas.sgi.com')
 
         return yaml_data if self.title is None else {self.title: yaml_data}
 
