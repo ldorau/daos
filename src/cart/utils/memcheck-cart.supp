@@ -445,6 +445,12 @@
    fun:indexbytebody
 }
 {
+    <insert_a_suppression_name_here>
+    Memcheck:Param
+    write(buf)
+    fun:syscall.Syscall.abi0
+}
+{
    FI leak 8
    Memcheck:Leak
    match-leak-kinds: reachable

@@ -35,6 +35,9 @@ const (
 	PoolCreateTimeout = 10 * time.Minute // be generous for large pools
 	// DefaultPoolTimeout is the default timeout for a pool request.
 	DefaultPoolTimeout = daos.DefaultCartTimeout * 3
+	// poolQueryRetryInterval is the amount of time to wait between
+	// retries when querying for pool information.
+	poolQueryRetryInterval = 1 * time.Second
 )
 
 // checkUUID is a helper function for validating that the supplied
@@ -858,6 +861,38 @@ func PoolGetProp(ctx context.Context, rpcClient UnaryInvoker, req *PoolGetPropRe
 	return resp, nil
 }
 
+func waitForPoolState(ctx context.Context, rpcClient UnaryInvoker, poolID string, chkFn func(*PoolQueryResp) (bool, error)) error {
+	startedAt := time.Now()
+	for {
+		pqr, err := PoolQuery(ctx, rpcClient, &PoolQueryReq{ID: poolID})
+		if err != nil {
+			return errors.Wrap(err, "pool query in waitForPoolState() failed")
+		}
+		ok, err := chkFn(pqr)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			rpcClient.Debug("Pool not yet in expected state, waiting...")
+			time.Sleep(poolQueryRetryInterval)
+			continue
+		}
+		rpcClient.Debugf("Pool is in expected state, took %s\n", time.Since(startedAt))
+		break
+	}
+
+	return nil
+}
+
+func waitForRebuildComplete(ctx context.Context, rpcClient UnaryInvoker, poolID string) error {
+	return waitForPoolState(ctx, rpcClient, poolID, func(pqr *PoolQueryResp) (bool, error) {
+		if pqr.Rebuild == nil {
+			return false, errors.New("pool rebuild not set")
+		}
+		return pqr.Rebuild.State == PoolRebuildStateDone, nil
+	})
+}
+
 // PoolExcludeReq struct contains request
 type PoolExcludeReq struct {
 	poolRequest
@@ -893,6 +928,10 @@ func PoolExclude(ctx context.Context, rpcClient UnaryInvoker, req *PoolExcludeRe
 		return errors.Wrap(err, "pool Exclude failed")
 	}
 	rpcClient.Debugf("Exclude DAOS pool target response: %s\n", msResp)
+
+	if !req.isUserAsync() {
+		return waitForRebuildComplete(ctx, rpcClient, req.ID)
+	}
 
 	return nil
 }
@@ -932,6 +971,10 @@ func PoolDrain(ctx context.Context, rpcClient UnaryInvoker, req *PoolDrainReq) e
 		return errors.Wrap(err, "pool Drain failed")
 	}
 	rpcClient.Debugf("Drain DAOS pool target response: %s\n", msResp)
+
+	if !req.isUserAsync() {
+		return waitForRebuildComplete(ctx, rpcClient, req.ID)
+	}
 
 	return nil
 }
@@ -978,6 +1021,10 @@ func PoolExtend(ctx context.Context, rpcClient UnaryInvoker, req *PoolExtendReq)
 	}
 	rpcClient.Debugf("Extend DAOS pool response: %s\n", msResp)
 
+	if !req.isUserAsync() {
+		return waitForRebuildComplete(ctx, rpcClient, req.ID)
+	}
+
 	return nil
 }
 
@@ -1016,6 +1063,10 @@ func PoolReintegrate(ctx context.Context, rpcClient UnaryInvoker, req *PoolReint
 		return errors.Wrap(err, "pool reintegrate failed")
 	}
 	rpcClient.Debugf("Reintegrate DAOS pool target response: %s\n", msResp)
+
+	if !req.isUserAsync() {
+		return waitForRebuildComplete(ctx, rpcClient, req.ID)
+	}
 
 	return nil
 }
