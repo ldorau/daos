@@ -455,8 +455,7 @@ class YamlParameters(ObjectWithParameters):
             dict: a dictionary of parameter name keys and values
 
         """
-        if (self.other_params is not None and
-                hasattr(self.other_params, "get_yaml_data")):
+        if (self.other_params is not None and hasattr(self.other_params, "get_yaml_data")):
             yaml_data = self.other_params.get_yaml_data()
         else:
             yaml_data = {}
@@ -464,6 +463,16 @@ class YamlParameters(ObjectWithParameters):
             value = getattr(self, name).value
             if value is not None:
                 yaml_data[name] = value
+
+        # HACK - append suffix to yaml
+        def _append_suffix(hostlist, suffix):
+            return list(map((lambda host: host if suffix in host else host + suffix), hostlist))
+
+        access_point_suffix = '.hostmgmt1001.aurora.americas.sgi.com'
+
+        for key in ('hostlist', 'access_points'):
+            if key in yaml_data:
+                yaml_data[key] = _append_suffix(yaml_data[key], access_point_suffix)
 
         return yaml_data if self.title is None else {self.title: yaml_data}
 
@@ -475,8 +484,7 @@ class YamlParameters(ObjectWithParameters):
 
         """
         yaml_data_updated = False
-        if (self.other_params is not None and
-                hasattr(self.other_params, "is_yaml_data_updated")):
+        if (self.other_params is not None and hasattr(self.other_params, "is_yaml_data_updated")):
             yaml_data_updated = self.other_params.is_yaml_data_updated()
         if not yaml_data_updated:
             for name in self.get_param_names():
