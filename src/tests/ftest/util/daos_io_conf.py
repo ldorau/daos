@@ -151,7 +151,7 @@ class IoConfTestBase(TestWithServers):
         """
         mpi_type = self.params.get("mpi_type", "/run/gen_io_conf/*", "openmpi")
         io_conf = IoConfGen(os.path.join(self.prefix, "bin"), self.testfile, mpi_type)
-        io_conf.set_environment({"POOL_SCM_SIZE": "{}".format(self.pool.scm_size)})
+        io_conf.env["POOL_SCM_SIZE"] = "{}".format(self.pool.scm_size)
         io_conf.get_params(self)
         return io_conf
 

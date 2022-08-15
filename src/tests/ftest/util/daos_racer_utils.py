@@ -46,11 +46,10 @@ class DaosRacerCommand(ExecutableCommand):
         # of None will result in no timeout being used.
         self.clush_timeout = BasicParameter(None)
 
-        # Environment variable names required to be set when running the
-        # daos_racer command.  The values for these names are populated by the
-        # get_environment() method and added to command line by the
-        # set_environment() method.
-        self._env_names = ["D_LOG_FILE"]
+    @property
+    def pre_command(self):
+        """Get any pre-command exports or commands."""
+        return self.env.to_export_str()
 
     def get_str_param_names(self):
         """Get a sorted list of the names of the command attributes.
@@ -65,20 +64,20 @@ class DaosRacerCommand(ExecutableCommand):
         """
         return self.get_attribute_names(FormattedParameter)
 
-    def get_environment(self, manager, log_file=None):
+    def get_environment(self, log_file=None):
         """Get the environment variables to export for the daos_racer command.
 
         Args:
-            manager (DaosServerManager): the job manager used to start
-                daos_server from which the server config values can be obtained
-                to set the required environment variables.
+            log_file (str, optional): when specified overrides the default
+                D_LOG_FILE value. Defaults to None.
 
         Returns:
             EnvironmentVariables: a dictionary of environment variable names and
                 values to export prior to running daos_racer
 
         """
-        env = super().get_environment(manager, log_file)
+        env = self.env.copy()
+        env['D_LOG_FILE'] = get_log_file(log_file or "{}_daos.log".format(self.command))
         env["OMPI_MCA_btl_openib_warn_default_gid_prefix"] = "0"
         env["OMPI_MCA_btl"] = "tcp,self"
         env["OMPI_MCA_oob"] = "tcp"
@@ -91,16 +90,6 @@ class DaosRacerCommand(ExecutableCommand):
         env["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"]
 
         return env
-
-    def set_environment(self, env):
-        """Set the environment variables to export prior to running daos_racer.
-
-        Args:
-            env (EnvironmentVariables): a dictionary of environment variable
-                names and values to export prior to running daos_racer
-        """
-        # Include exports prior to the daos_racer command
-        self._pre_command = env.to_export_str()
 
     def run(self):
         """Run the daos_racer command remotely.

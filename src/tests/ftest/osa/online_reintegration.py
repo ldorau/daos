@@ -7,6 +7,7 @@
 import time
 import random
 import threading
+import queue
 
 from test_utils_pool import add_pool
 from write_host_file import write_host_file
@@ -14,7 +15,6 @@ from daos_racer_utils import DaosRacerCommand
 from osa_utils import OSAUtils
 from daos_utils import DaosCommand
 from apricot import skipForTicket
-import queue
 
 
 class OSAOnlineReintegration(OSAUtils):
@@ -45,11 +45,9 @@ class OSAOnlineReintegration(OSAUtils):
 
     def daos_racer_thread(self):
         """Start the daos_racer thread."""
-        self.daos_racer = DaosRacerCommand(self.bin, self.hostlist_clients[0],
-                                           self.dmg_command)
+        self.daos_racer = DaosRacerCommand(self.bin, self.hostlist_clients[0], self.dmg_command)
         self.daos_racer.get_params(self)
-        self.daos_racer.set_environment(
-            self.daos_racer.get_environment(self.server_managers[0]))
+        self.daos_racer.env = self.daos_racer.get_environment()
         self.daos_racer.run()
 
     def run_online_reintegration_test(self, num_pool, racer=False,

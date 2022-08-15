@@ -72,6 +72,6 @@ mdtest_dfs_ec_16p2g1:
   dfs_oclass: EC_16P2G1
   dfs_dir_oclass: RP_3GX
   dfs_chunk: 16MiB
-performance:
-  env:
+client:
+  env_vars:
     - D_LOG_MASK=ERR

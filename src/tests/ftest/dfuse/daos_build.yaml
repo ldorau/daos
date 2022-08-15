@@ -18,3 +18,7 @@ container:
   control_method: daos
 dfuse:
   mount_dir: "/tmp/daos_dfuse"
+intercept_env:
+  - DD_MASK=all
+  - DD_SUBSYS=all
+  - D_LOG_MASK=WARN,IL=WARN

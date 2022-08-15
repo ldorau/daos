@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
   (C) Copyright 2018-2022 Intel Corporation.
 
@@ -6,17 +5,14 @@
 """
 import os
 import time
-import types
 
 from ior_test_base import IorTestBase
 from mdtest_test_base import MdtestBase
 from mdtest_utils import MdtestMetrics
 from general_utils import get_subprocess_stdout
 from ior_utils import IorMetrics
-from command_utils_base import EnvironmentVariables
 import oclass_utils
 
-# TODO dmg system query as non-json to reduce log clutter # pylint: disable=fixme
 
 class PerformanceTestBase(IorTestBase, MdtestBase):
     # pylint: disable=too-many-ancestors
@@ -24,7 +20,6 @@ class PerformanceTestBase(IorTestBase, MdtestBase):
 
     Optional yaml config values:
         performance/phase_barrier_s (int): seconds to wait between IOR write/read phases.
-        performance/env (list): list of env vars to set for IOR/MDTest.
 
     Outputs:
         */data/performance.log: Contains input parameters and output metrics.
@@ -47,7 +42,6 @@ class PerformanceTestBase(IorTestBase, MdtestBase):
         self.num_targets = 0
         self.num_clients = 0
         self.phase_barrier_s = 0
-        self.performance_env = EnvironmentVariables()
 
     def setUp(self):
         """Set up each test case."""
@@ -61,48 +55,6 @@ class PerformanceTestBase(IorTestBase, MdtestBase):
         self.num_targets = int(self.server_managers[0].get_config_value("targets"))
         self.num_clients = len(self.hostlist_clients)
         self.phase_barrier_s = self.params.get("phase_barrier_s", '/run/performance/*', 0)
-        self.__parse_performance_env()
-        self.__override_cmd_env(self.ior_cmd)
-        self.__override_cmd_env(self.mdtest_cmd)
-
-    def __parse_performance_env(self):
-        """Parse the performance environment variables.
-
-        This will be handled more cleanly by DAOS-9221. DO NOT COPY THIS.
-
-        For example:
-        performance:
-            env:
-                - D_LOG_MASK=ERR
-
-        """
-        perf_env = self.params.get("env", "/run/performance/*", {})
-        if not perf_env:
-            return
-        for key_val in perf_env:
-            key, val = key_val.split('=')
-            self.performance_env[key] = val
-
-    def __override_cmd_env(self, cmd):
-        """Override get_default_env for a cmd to include the performance environment.
-
-        Adds self.performance_env to self.{cmd}.get_default_env().
-        This will be handled more cleanly by DAOS-9221. DO NOT COPY THIS.
-
-        Args:
-            cmd (Object): object containing the get_default_env function.
-                Usually self.ior_cmd or self.mdtest_cmd.
-
-        """
-        old_get_default_env = cmd.get_default_env
-        performance_env = self.performance_env
-
-        def new_get_default_env(self, *args, **kwargs): # pylint: disable=unused-argument
-            env = old_get_default_env(*args, **kwargs)
-            for key, val in performance_env.items():
-                env[key] = val
-            return env
-        setattr(cmd, "get_default_env", types.MethodType(new_get_default_env, cmd))
 
     def log_performance(self, msg, log_to_info=True, file_path=None):
         """Log a performance-related message to self.log.info and self._performance_log_name.
@@ -127,8 +79,8 @@ class PerformanceTestBase(IorTestBase, MdtestBase):
 
         # Log each message individually to self.log
         if log_to_info:
-            for m in msg:
-                self.log.info(m)
+            for _msg in msg:
+                self.log.info(_msg)
 
         # Log a single combined message to file_path
         combined_msg = "\n".join(msg)

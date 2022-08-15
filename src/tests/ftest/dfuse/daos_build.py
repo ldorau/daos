@@ -7,9 +7,10 @@
 import os
 import time
 from collections import OrderedDict
-import general_utils
 
+import general_utils
 from dfuse_test_base import DfuseTestBase
+from command_utils_base import EnvironmentVariables
 
 
 class DaosBuild(DfuseTestBase):
@@ -149,20 +150,19 @@ class DaosBuild(DfuseTestBase):
         mount_dir = self.dfuse.mount_dir.value
         build_dir = os.path.join(mount_dir, 'daos')
 
-        remote_env = OrderedDict()
+        remote_env = EnvironmentVariables()
         remote_env['PATH'] = '{}:$PATH'.format(os.path.join(mount_dir, 'venv', 'bin'))
         remote_env['VIRTUAL_ENV'] = os.path.join(mount_dir, 'venv')
 
         if intercept:
             remote_env['LD_PRELOAD'] = os.path.join(self.prefix, 'lib64', 'libioil.so')
             remote_env['D_LOG_FILE'] = '/var/tmp/daos_testing/daos-il.log'
+            remote_env.update_from_list(self.params.get('intercept_env', '/run/*', []))
             remote_env['DD_MASK'] = 'all'
             remote_env['DD_SUBSYS'] = 'all'
             remote_env['D_LOG_MASK'] = 'WARN,IL=WARN'
 
-        envs = ['export {}={}'.format(env, value) for env, value in remote_env.items()]
-
-        preload_cmd = ';'.join(envs)
+        preload_cmd = remote_env.to_export_str()
 
         build_jobs = 6 * 5
         intercept_jobs = build_jobs
@@ -180,7 +180,7 @@ class DaosBuild(DfuseTestBase):
                 'scons -C {} --jobs {} --build-deps=only'.format(build_dir, build_jobs),
                 'scons -C {} --jobs {}'.format(build_dir, intercept_jobs)]
         for cmd in cmds:
-            command = '{};{}'.format(preload_cmd, cmd)
+            command = '{}{}'.format(preload_cmd, cmd)
             # Use a short timeout for most commands, but vary the build timeout based on dfuse mode.
             timeout = 10 * 60
             if cmd.startswith('scons'):

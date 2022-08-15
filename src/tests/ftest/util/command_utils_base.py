@@ -369,7 +369,11 @@ class CommandWithParameters(ObjectWithParameters):
         super().__init__(namespace)
         self._command = command
         self._path = path
-        self._pre_command = None
+
+    @property
+    def pre_command(self):
+        """Get any pre-command exports or commands."""
+        return None
 
     @property
     def command(self):
@@ -398,7 +402,8 @@ class CommandWithParameters(ObjectWithParameters):
 
         # Append the path to the command and prepend it with any other
         # specified commands
-        command_list = [] if self._pre_command is None else [self._pre_command]
+        pre_command = self.pre_command
+        command_list = [] if pre_command is None else [pre_command]
         command_list.append(os.path.join(self._path, self._command))
 
         # Return the command and its parameters
@@ -707,7 +712,7 @@ class EnvironmentVariables(dict):
         """
         for kv in kv_list:
             key, *value = kv.split('=')
-            self[key] = value[0] if value else None
+            self[key] = ''.join(value) if value else None
 
     def to_export_str(self, separator=";"):
         """Convert to a command to export all the environment variables.

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 """
   (C) Copyright 2020-2022 Intel Corporation.
 
@@ -114,34 +113,25 @@ class ZeroConfigTest(TestWithServers):
 
         """
         # anticipate log switch
-        cmd = "if [ -f {0}.old ]; then head -50 {0}.old; else head -50 {0};" \
-              "fi".format(log_file)
+        cmd = "if [ -f {0}.old ]; then head -50 {0}.old; else head -50 {0}; fi".format(log_file)
         err = "Error getting log data."
         pattern = r"Using\s+client\s+provided\s+OFI_INTERFACE:\s+{}".format(dev)
 
         detected = 0
         for host_data in get_host_data(hosts, cmd, log_file, err):
             detected = len(re.findall(pattern, host_data["data"]))
-        self.log.info(
-            "Found %s instances of client setting up OFI_INTERFACE=%s",
-            detected, dev)
+        self.log.info("Found %s instances of client setting up OFI_INTERFACE=%s", detected, dev)
 
         # Verify
-        status = True
-        if env_state and detected != 1:
-            status = False
-        elif not env_state and detected == 1:
-            status = False
-        return status
+        return int(env_state) == detected
 
     @fail_on(CommandFailure)
-    def verify_client_run(self, exp_iface, env):
+    def verify_client_run(self, exp_iface, env_state):
         """Verify the interface assigned by running a libdaos client.
 
         Args:
             exp_iface (str): expected interface to check.
-            env (bool): add OFI_INTERFACE variable to exported variables of
-                client command.
+            env_state (bool): add OFI_INTERFACE variable to exported variables of client command.
 
         Returns:
             bool: returns status
@@ -159,15 +149,11 @@ class ZeroConfigTest(TestWithServers):
         daos_racer = DaosRacerCommand(self.bin, clients[0], dmg)
         daos_racer.get_params(self)
 
-        # Update env_name list to add OFI_INTERFACE if needed.
-        if env:
-            daos_racer.update_env_names(["OFI_INTERFACE"])
-
         # Setup the environment and logfile
-        log_file = "daos_racer_{}_{}.log".format(exp_iface, env)
+        log_file = "daos_racer_{}_{}.log".format(exp_iface, env_state)
 
         # Add FI_LOG_LEVEL to get more info on device issues
-        racer_env = daos_racer.get_environment(self.server_managers[0], log_file)
+        racer_env = daos_racer.get_environment(log_file)
         racer_env["FI_LOG_LEVEL"] = "info"
         racer_env["D_LOG_MASK"] = "INFO,object=ERR,placement=ERR"
         if "ucx" in self.server_managers[0].get_config_value("provider"):
@@ -177,7 +163,12 @@ class ZeroConfigTest(TestWithServers):
         else:
             racer_env["OFI_DOMAIN"] = self.interfaces[exp_iface]["domain"]
 
-        daos_racer.set_environment(racer_env)
+        # Add OFI_INTERFACE if needed
+        if env_state:
+            server_ofi_interface = self.server_managers[0].get_environment_value('OFI_INTERFACE')
+            racer_env['OFI_INTERFACE'] = server_ofi_interface
+
+        daos_racer.env = racer_env.copy()
 
         # Run client
         daos_racer.run()
@@ -205,7 +196,7 @@ class ZeroConfigTest(TestWithServers):
                 self.log.info(msg_format, host, interface, before, after, diff)
 
         # Read daos.log to verify device used and prevent false positives
-        self.assertTrue(self.get_log_info(clients, exp_iface, env, get_log_file(log_file)))
+        self.assertTrue(self.get_log_info(clients, exp_iface, env_state, get_log_file(log_file)))
 
         # If we don't see data going through the device, fail
         for interface in no_traffic:
@@ -221,19 +212,21 @@ class ZeroConfigTest(TestWithServers):
             or unset. The test expects that the server will have two interfaces
             available: hfi_0 and hfi_1.
 
-        :avocado: tags=all,daily_regression,hw,small,zero_config,env_set
+        :avocado: tags=all,daily_regression
+        :avocado: tags=hw,small
+        :avocado: tags=network
+        :avocado: tags=zero_config,env_set,test_env_set_unset
         """
         env_state = self.params.get("env_state", '/run/zero_config/*')
 
         # Get the available interfaces and their domains
         self.get_device_info()
-        exp_iface = random.choice(list(self.interfaces.keys())) #nosec
+        exp_iface = random.choice(list(self.interfaces.keys()))  # nosec
 
         # Configure the daos server
         self.setup_servers()
         self.assertTrue(
-            self.server_managers[0].set_config_value(
-                "fabric_iface", exp_iface),
+            self.server_managers[0].set_config_value("fabric_iface", exp_iface),
             "Error updating daos_server 'fabric_iface' config opt")
         self.assertTrue(
             self.server_managers[0].set_config_value(

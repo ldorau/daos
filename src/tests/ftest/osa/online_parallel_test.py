@@ -8,6 +8,7 @@ import time
 import random
 import threading
 import copy
+import queue
 
 from itertools import product
 from write_host_file import write_host_file
@@ -15,7 +16,6 @@ from exception_utils import CommandFailure
 from daos_racer_utils import DaosRacerCommand
 from osa_utils import OSAUtils
 from apricot import skipForTicket
-import queue
 
 
 class OSAOnlineParallelTest(OSAUtils):
@@ -48,11 +48,9 @@ class OSAOnlineParallelTest(OSAUtils):
     def daos_racer_thread(self, results):
         """Start the daos_racer thread.
         """
-        self.daos_racer = DaosRacerCommand(self.bin, self.hostlist_clients[0],
-                                           self.dmg_command)
+        self.daos_racer = DaosRacerCommand(self.bin, self.hostlist_clients[0], self.dmg_command)
         self.daos_racer.get_params(self)
-        self.daos_racer.set_environment(
-            self.daos_racer.get_environment(self.server_managers[0]))
+        self.daos_racer.env = self.daos_racer.get_environment()
         self.daos_racer.run()
         results.put("Daos Racer Started")
 
@@ -99,9 +97,9 @@ class OSAOnlineParallelTest(OSAUtils):
         target_list = []
 
         # Exclude target : random two targets  (target idx : 0-7)
-        n = random.randint(0, 6) #nosec
-        target_list.append(n)
-        target_list.append(n+1)
+        target_idx = random.randint(0, 6)  # nosec
+        target_list.append(target_idx)
+        target_list.append(target_idx + 1)
         t_string = "{},{}".format(target_list[0], target_list[1])
 
         # Exclude rank 2.

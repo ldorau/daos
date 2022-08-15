@@ -11,6 +11,10 @@ import time
 import random
 import threading
 import re
+from ClusterShell.NodeSet import NodeSet
+from avocado.core.exceptions import TestFail
+from pydaos.raw import DaosSnapshot, DaosApiError
+
 from ior_utils import IorCommand
 from fio_utils import FioCommand
 from mdtest_utils import MdtestCommand
@@ -25,9 +29,6 @@ from command_utils_base import EnvironmentVariables
 import slurm_utils
 from daos_utils import DaosCommand
 from test_utils_container import TestContainer
-from ClusterShell.NodeSet import NodeSet
-from avocado.core.exceptions import TestFail
-from pydaos.raw import DaosSnapshot, DaosApiError
 from macsio_util import MacsioCommand
 from oclass_utils import extract_redundancy_factor
 
@@ -951,17 +952,17 @@ def create_macsio_cmdline(self, job_spec, pool, ppn, nodesperjob):
             log_name = "{}_{}_{}_{}_{}_{}".format(
                 job_spec, api, o_type, nodesperjob * ppn, nodesperjob, ppn)
             daos_log = os.path.join(
-                self.soaktest_dir, self.test_name +
-                "_" + log_name + "_`hostname -s`_${SLURM_JOB_ID}_daos.log")
+                self.soaktest_dir, self.test_name
+                + "_" + log_name + "_`hostname -s`_${SLURM_JOB_ID}_daos.log")
             macsio_log = os.path.join(
-                self.soaktest_dir, self.test_name +
-                "_" + log_name + "_`hostname -s`_${SLURM_JOB_ID}_macsio-log.log")
+                self.soaktest_dir, self.test_name
+                + "_" + log_name + "_`hostname -s`_${SLURM_JOB_ID}_macsio-log.log")
             macsio_timing_log = os.path.join(
-                self.soaktest_dir, self.test_name +
-                "_" + log_name + "_`hostname -s`_${SLURM_JOB_ID}_macsio-timing.log")
+                self.soaktest_dir, self.test_name
+                + "_" + log_name + "_`hostname -s`_${SLURM_JOB_ID}_macsio-timing.log")
             macsio.log_file_name.update(macsio_log)
             macsio.timings_file_name.update(macsio_timing_log)
-            env = macsio.get_environment("mpirun", log_file=daos_log)
+            env = macsio.get_environment(log_file=daos_log)
             sbatch_cmds = ["module purge", "module load {}".format(self.mpi_module)]
             mpirun_cmd = Mpirun(macsio, mpi_type=self.mpi_module)
             mpirun_cmd.assign_processes(nodesperjob * ppn)
@@ -1107,8 +1108,8 @@ def create_racer_cmdline(self, job_spec):
         self.soaktest_dir,
         self.test_name + "_" + job_spec + "_`hostname -s`_"
         "${SLURM_JOB_ID}_" + "racer_log")
-    env = daos_racer.get_environment(self.server_managers[0], racer_log)
-    daos_racer.set_environment(env)
+    env = daos_racer.get_environment(racer_log)
+    daos_racer.env = env.copy()
     log_name = job_spec
     cmds = []
     cmds.append(str(daos_racer.__str__()))

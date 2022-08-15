@@ -40,3 +40,7 @@ intercept: !mux
     use_intercept: false
   on:
     use_intercept: true
+intercept_env:
+  - DD_MASK=all
+  - DD_SUBSYS=all
+  - D_LOG_MASK=INFO,IL=DEBUG

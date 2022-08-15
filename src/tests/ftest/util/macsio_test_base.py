@@ -69,15 +69,13 @@ class MacsioTestBase(TestWithServers):
         self.macsio.daos_cont = cont_uuid
 
         # Setup the job manager to run the macsio command
-        env = self.macsio.get_environment(
-            self.server_managers[0], self.client_log)
+        env = self.macsio.get_environment(self.client_log)
         if plugin:
             # Include DAOS VOL environment settings
             env["HDF5_VOL_CONNECTOR"] = "daos"
-            env["HDF5_PLUGIN_PATH"] = "{}".format(plugin)
+            env["HDF5_PLUGIN_PATH"] = str(plugin)
         self.job_manager.job = self.macsio
-        self.job_manager.assign_hosts(
-            self.hostlist_clients, self.workdir, slots)
+        self.job_manager.assign_hosts(self.hostlist_clients, self.workdir, slots)
         self.job_manager.assign_processes(len(self.hostlist_clients))
         self.job_manager.assign_environment(env)
 

@@ -45,11 +45,9 @@ class OSAOnlineExtend(OSAUtils):
 
     def daos_racer_thread(self):
         """Start the daos_racer thread."""
-        self.daos_racer = DaosRacerCommand(self.bin, self.hostlist_clients[0],
-                                           self.dmg_command)
+        self.daos_racer = DaosRacerCommand(self.bin, self.hostlist_clients[0], self.dmg_command)
         self.daos_racer.get_params(self)
-        self.daos_racer.set_environment(
-            self.daos_racer.get_environment(self.server_managers[0]))
+        self.daos_racer.env = self.daos_racer.get_environment()
         self.daos_racer.run()
 
     def run_online_extend_test(self, num_pool, racer=False,

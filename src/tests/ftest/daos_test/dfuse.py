@@ -8,6 +8,7 @@ import os
 from collections import OrderedDict
 import general_utils
 from dfuse_test_base import DfuseTestBase
+from command_utils_base import EnvironmentVariables
 
 
 class DaosCoreTestDfuse(DfuseTestBase):
@@ -90,19 +91,14 @@ class DaosCoreTestDfuse(DfuseTestBase):
         cmd = [self.daos_test, '--test-dir', mount_dir]
 
         if intercept:
-            remote_env = OrderedDict()
-
+            remote_env = EnvironmentVariables()
             remote_env['LD_PRELOAD'] = os.path.join(self.prefix, 'lib64', 'libioil.so')
-            remote_env['D_LOG_FILE'] = '/var/tmp/daos_testing/daos-il.log'
-            remote_env['DD_MASK'] = 'all'
-            remote_env['DD_SUBSYS'] = 'all'
-            remote_env['D_LOG_MASK'] = 'INFO,IL=DEBUG'
+            remote_env['D_LOG_FILE'] = general_utils.get_log_file('daos-il.log')
+            remote_env.update_from_list(self.params.get('intercept_env', '/run/*', []))
 
-            envs = ['export {}={}'.format(env, value) for env, value in remote_env.items()]
+            preload_cmd = remote_env.to_export_str()
 
-            preload_cmd = ';'.join(envs)
-
-            command = '{};{}'.format(preload_cmd, ' '.join(cmd))
+            command = '{}{}'.format(preload_cmd, ' '.join(cmd))
         else:
             command = ' '.join(cmd)
         ret_code = general_utils.pcmd(self.hostlist_clients, command, timeout=60)

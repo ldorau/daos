@@ -8,6 +8,7 @@
 from apricot import TestWithServers
 from daos_perf_utils import DaosPerfCommand
 from exception_utils import CommandFailure
+from general_utils import get_log_file
 
 
 class DaosPerfBase(TestWithServers):
@@ -36,12 +37,12 @@ class DaosPerfBase(TestWithServers):
         daos_perf.cont_uuid.update(self.container.uuid)
         daos_perf.dmg_config_file.update(dmg_config_file)
         self.log.info("daos_perf command: %s", str(daos_perf))
-        daos_perf_env = daos_perf.get_environment(self.server_managers[0])
+        daos_perf.env['D_LOG_FILE'] = get_log_file("{}_daos.log".format(daos_perf.command))
 
         # Create the orterun command
         self.job_manager.assign_hosts(self.hostlist_clients, self.workdir, None)
         self.job_manager.assign_processes(processes)
-        self.job_manager.assign_environment(daos_perf_env)
+        self.job_manager.assign_environment(daos_perf.env)
         self.job_manager.job = daos_perf
         self.log.info("orterun command: %s", str(self.job_manager))
 

@@ -74,7 +74,7 @@ class DfuseTestBase(TestWithServers):
             self.dfuse.set_dfuse_params(pool)
         if container:
             self.dfuse.set_dfuse_cont_param(container)
-        self.dfuse.set_dfuse_exports(self.server_managers[0], self.client_log)
+        self.dfuse.set_dfuse_exports(self.client_log)
 
         try:
             # Start dfuse
