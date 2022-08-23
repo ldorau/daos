@@ -14,7 +14,7 @@
 
 // To use a test branch (i.e. PR) until it lands to master
 // I.e. for testing library changes
-//@Library(value="pipeline-lib@your_branch") _
+@Library(value="pipeline-lib@bmurrell/leap15.4") _
 
 /* groovylint-disable-next-line CompileStatic */
 job_status_internal = [:]
@@ -462,7 +462,7 @@ pipeline {
                         }
                     }
                 }
-                stage('Build RPM on Leap 15') {
+                stage('Build RPM on Leap 15.4') {
                     when {
                         beforeAgent true
                         expression { !skipStage() }
@@ -605,7 +605,7 @@ pipeline {
                         }
                     }
                 }
-                stage('Build on Leap 15 with Intel-C and TARGET_PREFIX') {
+                stage('Build on Leap 15.4 with Intel-C and TARGET_PREFIX') {
                     when {
                         beforeAgent true
                         expression { !skipStage() }
@@ -833,7 +833,7 @@ pipeline {
                         }
                     }
                 } // stage('Functional on EL 8')
-                stage('Functional on Leap 15') {
+                stage('Functional on Leap 15.4') {
                     when {
                         beforeAgent true
                         expression { !skipStage() }
@@ -852,7 +852,7 @@ pipeline {
                             job_status_update()
                         }
                     } // post
-                } // stage('Functional on Leap 15')
+                } // stage('Functional on Leap 15.4')
                 stage('Functional on Ubuntu 20.04') {
                     when {
                         beforeAgent true
@@ -873,6 +873,43 @@ pipeline {
                         }
                     } // post
                 } // stage('Functional on Ubuntu 20.04')
+                stage('Test Leap 15.4 RPMs') {
+                    when {
+                        beforeAgent true
+                        expression { !skipStage() }
+                    }
+                    agent {
+                        label params.CI_UNIT_VM1_LABEL
+                    }
+                    steps {
+                        testRpm inst_repos: daosRepos(),
+                                daos_pkg_version: daosPackagesVersion(next_version)
+                   }
+                    post {
+                        always {
+                            job_status_update()
+                        }
+                    }
+                } // stage('Test Leap 15.4 RPMs')
+                stage('Test Leap 15.4 RPMs on Leap 15.3') {
+                    when {
+                        beforeAgent true
+                        expression { !skipStage() }
+                    }
+                    agent {
+                        label params.CI_UNIT_VM1_LABEL
+                    }
+                    steps {
+                        testRpm inst_repos: daosRepos(),
+                                target: 'leap15.3',
+                                daos_pkg_version: daosPackagesVersion(next_version)
+                   }
+                    post {
+                        always {
+                            job_status_update()
+                        }
+                    }
+                } // stage('Test Leap 15.4 RPMs on Leap 15.3')
                 stage('Scan EL 8 RPMs') {
                     when {
                         beforeAgent true
@@ -892,7 +929,7 @@ pipeline {
                         }
                     }
                 } // stage('Scan EL 8 RPMs')
-                stage('Scan Leap 15 RPMs') {
+                stage('Scan Leap 15.4 RPMs') {
                     when {
                         beforeAgent true
                         expression { !skipStage() }
@@ -910,7 +947,7 @@ pipeline {
                             job_status_update()
                         }
                     }
-                } // stage('Scan Leap 15 RPMs')
+                } // stage('Scan Leap 15.4 RPMs')
                 stage('Fault injection testing on EL 8') {
                     when {
                         beforeAgent true
