@@ -101,9 +101,9 @@ fi
 # https://github.com/rpm-software-management/mock/issues/915
 hack_status=false
 if [ "$CHROOT_NAME" = "opensuse-leap-15.4-x86_64" ]; then
-    if timeout 30m mock --configdir "$mock_config_dir" -r "${CHROOT_NAME}"           \
-                   ${repo_dels[*]} ${repo_adds[*]} --disablerepo=\*-debug*           \
-                   "${releasever_opt[@]}" $MOCK_OPTIONS $RPM_BUILD_OPTIONS "$TARGET"; then
+    if timeout 30m eval mock --configdir "$mock_config_dir" -r "${CHROOT_NAME}"           \
+                        ${repo_dels[*]} ${repo_adds[*]} --disablerepo=\*-debug*           \
+                        "${releasever_opt[@]}" $MOCK_OPTIONS $RPM_BUILD_OPTIONS "$TARGET"; then
         hack_status=true
     fi
 fi
