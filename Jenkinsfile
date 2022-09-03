@@ -441,6 +441,7 @@ pipeline {
                     }
                     post {
                         success {
+                            rpmlintMockResults('rocky+epel-8-x86_64')
                             buildRpmPost condition: 'success'
                         }
                         unstable {
@@ -477,6 +478,7 @@ pipeline {
                     }
                     post {
                         success {
+                            rpmlintMockResults('opensuse-leap-15.3-x86_64')
                             buildRpmPost condition: 'success'
                         }
                         unstable {
