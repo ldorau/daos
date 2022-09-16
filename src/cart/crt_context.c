@@ -394,7 +394,7 @@ crt_rpc_complete(struct crt_rpc_priv *rpc_priv, int rc)
 static void
 crt_ctx_epi_mark_locked(struct crt_ep_inflight *epi, bool dead, int ctx_idx)
 {
-	D_DEBUG(DB_NET, "marking epi (idx=%d rank=%d): dead=%u\n", ctx_idx,
+	D_INFO("marking epi (idx=%d rank=%d): dead=%u\n", ctx_idx,
 		epi->epi_ep.ep_rank, dead);
 	epi->epi_dead = dead ? 1 : 0;
 }
@@ -526,6 +526,10 @@ crt_ctx_epi_abort(d_list_t *rlink, void *arg)
 			ts_now = d_timeus_secdiff(0);
 			if (ts_now - ts_start > 2 * CRT_DEFAULT_TIMEOUT_US) {
 				D_ERROR("stop progress due to timed out.\n");
+				d_list_for_each_entry(rpc_priv, &epi->epi_req_q, crp_epi_link)
+					RPC_ERROR(rpc_priv, "inflight: still not aborted\n");
+				d_list_for_each_entry(rpc_priv, &epi->epi_req_waitq, crp_epi_link)
+					RPC_ERROR(rpc_priv, "waiting: still not aborted\n");
 				rc = -DER_TIMEDOUT;
 				break;
 			}
@@ -1074,7 +1078,7 @@ crt_context_req_track(struct crt_rpc_priv *rpc_priv)
 	D_MUTEX_LOCK(&epi->epi_mutex);
 
 	if (epi->epi_dead) {
-		RPC_TRACE(DB_NET, rpc_priv, "cancel due to dead rank\n");
+		RPC_ERROR(rpc_priv, "cancel due to dead rank\n");
 		D_GOTO(out_unlock_epi, rc = -DER_CANCELED);
 	}
 
